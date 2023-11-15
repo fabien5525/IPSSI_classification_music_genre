@@ -1,0 +1,19 @@
+services:
+  tensorflow:
+    image: tensorflow/tensorflow:latest-gpu-jupyter
+    ports:
+      - "8888:8888"
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - NVIDIA_REQUIRE_CUDA=cuda>=9.0
+    volumes:
+      - ./:/tf/notebooks/
+    working_dir: /tf/notebooks/
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
