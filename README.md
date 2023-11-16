@@ -8,6 +8,8 @@ mkdir clean_data
 mkdir data
 mkdir models
 mkdr temp
+mkdir data/temp
+mkdir data/genre_3s
 ~~~
 
 Lancement du docker

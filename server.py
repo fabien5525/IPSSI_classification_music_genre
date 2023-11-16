@@ -5,23 +5,46 @@ import yt_dlp
 import ffmpeg
 import sys
 import librosa
+import os
 import pandas as pd
 import numpy as np
 from flask_cors import CORS, cross_origin
-from tensorflow.keras.models import load_model
+from tensorflow import keras
+from keras.layers import Dense
+from keras.models import Sequential, load_model
+from pydub import AudioSegment
+
 
 app = Flask(__name__)
 
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
 
+def cut_audio(input_file_path, output_folder):
+    sound = AudioSegment.from_wav(input_file_path)
+
+    clip_duration = 30 * 1000  # Durée de chaque clip en millisecondes
+    total_duration = len(sound)
+
+    # if total_duration < 90 sec save it as it is
+    # else, cut it into 30 sec clips from 60 to 90 sec
+
+    if total_duration < 90 * 1000:
+        sound.export(os.path.join(output_folder, f"temp.wav"), format="wav")
+    else:
+        start_time = 60 * 1000
+        end_time = 90 * 1000
+        clip = sound[start_time:end_time]
+        clip.export(os.path.join(output_folder, f"temp.wav"), format="wav")
+
 
 def extract_audio_features(file_path):
     print("in")
     try:
+        cut_audio(file_path, "./temp/")
         sr = 44100
         # Chargement du fichier audio
-        y, sr = librosa.load(file_path, sr=sr)
+        y, sr = librosa.load("./temp/temp.wav", sr=sr)
 
         # spectrogram, tempo, chroma, mfccs, spectral_contrast
 
@@ -74,11 +97,6 @@ def extract_audio_features(file_path):
         print(f"Error processing {file_path}: {e}")
         return None
 
-@app.route("/")
-@cross_origin()
-def hello_world():
-    return "<p>Hello, World!</p>"
-
 # Route post that will have an url as request body
 @app.route("/download", methods=['POST'])
 @cross_origin() 
@@ -86,12 +104,12 @@ def download():
     print("-------------------", request.form.get('url'))
     url = request.form.get('url')
     print("url", url)
-    download_from_url(url)
-    return "Downloaded"
+    response = download_from_url(url)
+    return response
 
 ydl_opts = {
     'format': 'bestaudio/best',
-   'outtmpl': './temp/output.%(ext)s',
+    'outtmpl': './temp/output.%(ext)s',
     'postprocessors': [{
         'key': 'FFmpegExtractAudio',
         'preferredcodec': 'wav',
@@ -103,24 +121,26 @@ def download_from_url(url):
         features = extract_audio_features('./temp/output.wav')
         if features is None:
             return None
-
-        model = load_model('./models/best_model_0899.h5')
+        model = load_model('./models/v2_model.h5')
 
         label_dict = {
             0: 'blues',
             1: 'classical',
             2: 'country',
-            3: 'disco',
-            4: 'hiphop',
+            3: 'hiphop',
+            4: 'disco',
             5: 'jazz',
             6: 'metal',
             7: 'pop',
             8: 'reggae',
             9: 'rock'
         }
-
+        # convert features to dataframe
+        features = pd.DataFrame(features, index=[0])
+        # convert df to numpy array
+        features = np.array(features)
         # predict
         model.predict(features)
-
-        # print predicted label
+        print (model.predict(features))
         print(label_dict[np.argmax(model.predict(features))])
+        return label_dict[np.argmax(model.predict(features))]

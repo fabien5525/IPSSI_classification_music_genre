@@ -3,6 +3,7 @@ services:
     image: tensorflow/tensorflow:latest-gpu-jupyter
     ports:
       - "8888:8888"
+      - "80:80"
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
